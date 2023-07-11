@@ -7,6 +7,7 @@
 #include <cmath>
 
 #include <boost/multiprecision/cpp_dec_float.hpp>
+#include <boost/multiprecision/cpp_int.hpp>
 
 using namespace boost::multiprecision;
 using namespace std;
@@ -14,6 +15,8 @@ using namespace std;
 
 const int WIDTH = 900;
 const int HEIGHT = 900;
+
+string maths = "1";
 
 cpp_dec_float_50 minx = -3;
 cpp_dec_float_50 maxx = 1;
@@ -465,6 +468,8 @@ void cords_setup(cpp_dec_float_50 new_minX, cpp_dec_float_50 new_maxX, cpp_dec_f
     
     maxy = maxy - old_xstep * new_minY;
     miny = maxy - xstep * HEIGHT;
+
+    maths = to_string((cpp_int)(((last_maxx[0] - last_minx[0]) * (last_maxy[0] - last_miny[0])) / ((last_maxx[last_maxx.size() - 1] - last_minx[last_maxx.size() - 1]) * (last_maxy[last_maxx.size() - 1] - last_miny[last_maxx.size() - 1]))));
 }
 
 int main() {
@@ -474,7 +479,7 @@ int main() {
     auto end = std::chrono::steady_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
-    string maths;
+    
 
     sf::Texture texture;
     texture.create(WIDTH, HEIGHT);
@@ -926,8 +931,6 @@ int main() {
                 keyvar6 = true;
             }
         }
-
-        maths = to_string((uint64_t)(((last_maxx[0] - last_minx[0]) * (last_maxy[0] - last_miny[0])) / ((last_maxx[last_maxx.size() - 1] - last_minx[last_maxx.size() - 1]) * (last_maxy[last_maxx.size() - 1] - last_miny[last_maxx.size() - 1]))));
 
         sf::Font font;
         font.loadFromFile("arial.ttf");
