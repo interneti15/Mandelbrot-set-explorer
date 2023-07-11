@@ -2,3 +2,5 @@ If you want to build an application, you have to download boost library from htt
 Another libary that you have to download is SFML (Project used 2.6.0) and locate it in ```sfml``` folder in root directory.
 
 Project has been set up for Visual Studio (Used VS 17 2022 with C++ 17)
+
+Application is using 12 threads.
