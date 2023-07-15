@@ -325,7 +325,7 @@ void starter()
 
     while (!end_all_threads and !last_start)
     {
-        for (size_t i = 0; i < calculationThreads.size(); i++)
+        for (size_t i = 0; i < calculationThreads.size() and !end_all_threads; i++)
         {
             if (!is_alive[i])
             {
