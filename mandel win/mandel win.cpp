@@ -44,6 +44,10 @@ bool to_join = false;
 
 bool end_all_threads = false;
 
+int delta = 15;
+int numCores = std::thread::hardware_concurrency();
+//int numCores = 20;
+
 vector<cpp_dec_float_50> last_minx = { -3 };
 vector< cpp_dec_float_50> last_maxx = { 1 };
 vector< cpp_dec_float_50> last_xstep = { (maxx - minx) / WIDTH };
@@ -53,20 +57,11 @@ vector< cpp_dec_float_50> last_ystep = { xstep };
 vector< cpp_dec_float_50> last_miny = { maxy - (((maxx - minx) * HEIGHT) / WIDTH) };
 
 
-vector<bool> is_alive(13, false);
+vector<bool> is_alive(numCores + 1, false);
 
-std::thread calculationThread1;
-std::thread calculationThread2;
-std::thread calculationThread3;
-std::thread calculationThread4;
-std::thread calculationThread5;
-std::thread calculationThread6;
-std::thread calculationThread7;
-std::thread calculationThread8;
-std::thread calculationThread9;
-std::thread calculationThread10;
-std::thread calculationThread11;
-std::thread calculationThreadE;
+
+std::vector<std::thread> calculationThreads(numCores);
+
 
 std::thread StartingThread;
 
@@ -91,12 +86,20 @@ bool from0(cpp_dec_float_50 x, cpp_dec_float_50 y, cpp_dec_float_50 len = 50) {
 void to_close(int i)
 {
     //std::this_thread::sleep_for(chrono::duration<cpp_dec_float_50>(0.01));
-    is_alive[i - 1] = false;
+    is_alive[i] = false;
 }
 
 std::pair<cpp_dec_float_50, cpp_dec_float_50> mandel(cpp_dec_float_50 x, cpp_dec_float_50 y, cpp_dec_float_50 x0, cpp_dec_float_50 y0) {
     cpp_dec_float_50 real = (x * x) + (-y * y) + x0;
     cpp_dec_float_50 imag = (x * y * 2) + y0;
+    return std::make_pair(real, imag);
+}
+
+std::pair<cpp_dec_float_50, cpp_dec_float_50> julia(cpp_dec_float_50 x, cpp_dec_float_50 y, cpp_dec_float_50 cx, cpp_dec_float_50 cy) {
+    cx = -0.775573102;
+    cy = -0.338761181;
+    cpp_dec_float_50 real = (x * x) - (y * y) + cx;
+    cpp_dec_float_50 imag = (2 * x * y) + cy;
     return std::make_pair(real, imag);
 }
 
@@ -128,11 +131,11 @@ void calculateMandelbrot(int startRow, int endRow, int i, bool dry_run) {
 
     if (dry_run)
     {
-        is_alive[i - 1] = false;
+        is_alive[i] = false;
         return;
     }
 
-    is_alive[i - 1] = true;
+    is_alive[i] = true;
     to_clean = true;
 
     int last_color = 0, color = 0;
@@ -221,7 +224,7 @@ void calculateMandelbrot(int startRow, int endRow, int i, bool dry_run) {
     }
     cout << "Ended: " << i << endl;
     //thread c1(to_close, 1);
-    is_alive[i - 1] = false;
+    is_alive[i] = false;
 }
 
 std::tuple<int, int, int> numberToRGB3(int number) {
@@ -270,15 +273,15 @@ void updatePixels() {
 
 void updatePallete(int new_max, int old) 
 {
-    double maths = 0;
+    double maths1 = 0;
     for (int y = 0; y < HEIGHT; y++) 
     {
         for (int x = 0; x < WIDTH; x++) 
         {
             //screenMutex.lock();
-            maths = ((double)screen[y * WIDTH + x] / (double)old);
-            //cout << maths << endl;
-            screen[y * WIDTH + x] = (int)(maths * new_max);
+            maths1 = ((double)screen[y * WIDTH + x] / (double)old);
+            //cout << maths1 << endl;
+            screen[y * WIDTH + x] = (int)(maths1 * new_max);
             //cout << (screen[y * WIDTH + x] / old) << endl;
             //screenMutex.unlock();
             
@@ -286,23 +289,9 @@ void updatePallete(int new_max, int old)
     }
 }
 
-void starter_old()
-{
-    calculationThread1 = std::thread(calculateMandelbrot, 0, floor((HEIGHT / 11) * 1), 1, false);
-    calculationThread2 = std::thread(calculateMandelbrot, floor((HEIGHT / 11) * 1), floor((HEIGHT / 11) * 2), 2, false);
-    calculationThread3 = std::thread(calculateMandelbrot, floor((HEIGHT / 11) * 2), floor((HEIGHT / 11) * 3), 3, false);
-    calculationThread4 = std::thread(calculateMandelbrot, floor((HEIGHT / 11) * 3), floor((HEIGHT / 11) * 4), 4, false);
-    calculationThread5 = std::thread(calculateMandelbrot, floor((HEIGHT / 11) * 4), floor((HEIGHT / 11) * 5), 5, false);
-    calculationThread6 = std::thread(calculateMandelbrot, floor((HEIGHT / 11) * 5), floor((HEIGHT / 11) * 6), 6, false);
-    calculationThread7 = std::thread(calculateMandelbrot, floor((HEIGHT / 11) * 6), floor((HEIGHT / 11) * 7), 7, false);
-    calculationThread8 = std::thread(calculateMandelbrot, floor((HEIGHT / 11) * 7), floor((HEIGHT / 11) * 8), 8, false);
-    calculationThread9 = std::thread(calculateMandelbrot, floor((HEIGHT / 11) * 8), floor((HEIGHT / 11) * 9), 9, false);
-    calculationThread10 = std::thread(calculateMandelbrot, floor((HEIGHT / 11) * 9), floor((HEIGHT / 11) * 10), 10, false);
-    calculationThread11 = std::thread(calculateMandelbrot, floor((HEIGHT / 11) * 10), HEIGHT, 11, false);
-}
-
 void dry()
 {
+    /*
     calculationThread1 = std::thread(calculateMandelbrot, 0, 0, 1, true);
     calculationThread2 = std::thread(calculateMandelbrot, 0, 0, 2, true);
     calculationThread3 = std::thread(calculateMandelbrot, 0, 0, 3, true);
@@ -315,102 +304,48 @@ void dry()
     calculationThread10 = std::thread(calculateMandelbrot, 0, 0, 10, true);
     calculationThread11 = std::thread(calculateMandelbrot, 0, 0, 11, true);
     calculationThreadE = std::thread(calculateMandelbrot, 0, 0, 12, true);
+    */
+
+    for (size_t i = 0; i < calculationThreads.size(); i++)
+    {
+        calculationThreads[i] = std::thread(calculateMandelbrot, 0, 0, i, true);
+    }
 }
 
 void starter()
 {
-    int delta = 25;
+    
 
 
     to_join = false;
     cout << "Starter..." << endl;
-    int i = 0;
+    int c = 0;
 
-    while (!end_all_threads)
+    bool last_start = false;
+
+    while (!end_all_threads and !last_start)
     {
-        if (i + delta >= HEIGHT)
+        for (size_t i = 0; i < calculationThreads.size(); i++)
         {
-            calculationThreadE.join();
-            calculationThreadE = std::thread(calculateMandelbrot, i, HEIGHT, 12, false);
-            break;
-        }
-        
-        else if (!is_alive[0])
-        {
-            is_alive[0] = true;
-            calculationThread1.join();
-            calculationThread1 = std::thread(calculateMandelbrot, i, i + delta, 1, false);
-            i += delta;
-        }
-        else if (!is_alive[1])
-        {
-            is_alive[1] = true;
-            calculationThread2.join();
-            calculationThread2 = std::thread(calculateMandelbrot, i, i + delta, 2, false);
-            i += delta;
-        }
-        else if (!is_alive[2])
-        {
-            is_alive[2] = true;
-            calculationThread3.join();
-            calculationThread3 = std::thread(calculateMandelbrot, i, i + delta, 3, false);
-            i += delta;
-        }
-        else if (!is_alive[3])
-        {
-            is_alive[3] = true;
-            calculationThread4.join();
-            calculationThread4 = std::thread(calculateMandelbrot, i, i + delta, 4, false);
-            i += delta;
-        }
-        else if (!is_alive[4])
-        {
-            is_alive[4] = true;
-            calculationThread5.join();
-            calculationThread5 = std::thread(calculateMandelbrot, i, i + delta, 5, false);
-            i += delta;
-        }
-        else if (!is_alive[5])
-        {
-            is_alive[5] = true;
-            calculationThread6.join();
-            calculationThread6 = std::thread(calculateMandelbrot, i, i + delta, 6, false);
-            i += delta;
-        }
-        else if (!is_alive[6])
-        {
-            is_alive[6] = true;
-            calculationThread7.join();
-            calculationThread7 = std::thread(calculateMandelbrot, i, i + delta, 7, false);
-            i += delta;
-        }
-        else if (!is_alive[7])
-        {
-            is_alive[7] = true;
-            calculationThread8.join();
-            calculationThread8 = std::thread(calculateMandelbrot, i, i + delta, 8, false);
-            i += delta;
-        }
-        else if (!is_alive[8])
-        {
-            is_alive[8] = true;
-            calculationThread9.join();
-            calculationThread9 = std::thread(calculateMandelbrot, i, i + delta, 9, false);
-            i += delta;
-        }
-        else if (!is_alive[9])
-        {
-            is_alive[9] = true;
-            calculationThread10.join();
-            calculationThread10 = std::thread(calculateMandelbrot, i, i + delta, 10, false);
-            i += delta;
-        }
-        else if (!is_alive[10])
-        {
-            is_alive[10] = true;
-            calculationThread11.join();
-            calculationThread11 = std::thread(calculateMandelbrot, i, i + delta, 11, false);
-            i += delta;
+            if (!is_alive[i])
+            {
+                is_alive[i] = true;
+
+                calculationThreads[i].join();
+
+                if (c + delta <= HEIGHT)
+                {
+                    calculationThreads[i] = std::thread(calculateMandelbrot, c, c + delta, i, false);
+                }
+                else
+                {
+                    calculationThreads[i] = std::thread(calculateMandelbrot, c, HEIGHT, i, false);
+                    last_start = true;
+                    break;
+                }
+                
+                c += delta;
+            }
         }
     }
 
@@ -469,7 +404,18 @@ void cords_setup(cpp_dec_float_50 new_minX, cpp_dec_float_50 new_maxX, cpp_dec_f
     maxy = maxy - old_xstep * new_minY;
     miny = maxy - xstep * HEIGHT;
 
+    maths = "";
     maths = to_string((cpp_int)(((last_maxx[0] - last_minx[0]) * (last_maxy[0] - last_miny[0])) / ((last_maxx[last_maxx.size() - 1] - last_minx[last_maxx.size() - 1]) * (last_maxy[last_maxx.size() - 1] - last_miny[last_maxx.size() - 1]))));
+    string t = maths.substr(0, 1);
+
+    if (maths.size() > 20)
+    {
+        t.append(".");
+        t.append(maths.substr(1, 2));
+        t.append(" * 10^");
+        t.append(to_string(maths.size() - 1));
+        maths = t;
+    }
 }
 
 int main() {
@@ -479,12 +425,20 @@ int main() {
     auto end = std::chrono::steady_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
-    
+    bool focus = false;
 
     sf::Texture texture;
     texture.create(WIDTH, HEIGHT);
 
     sf::Sprite sprite(texture);
+
+    sf::Font font;
+    font.loadFromFile("arial.ttf");
+
+   //sf::Text text(std::string("Zoom: " + maths + "X"), font, 25);
+    sf::Text text("", font, 25);
+    text.setOutlineColor(sf::Color::Black);
+    text.setOutlineThickness(1);
 
     dry();
 
@@ -523,6 +477,7 @@ int main() {
         //cout << calculationThread.joinable() << ":" << is_alive[0] << endl;
 
         ended = all_ended();
+        focus = window.hasFocus();
 
         if (ended or refre > 0 or 1)
         {
@@ -542,7 +497,7 @@ int main() {
             mouseX = mousePosition.x;
             mouseY = mousePosition.y;
 
-            if (sf::Mouse::isButtonPressed(sf::Mouse::Left) and !mousevar and mouseX >= 0 and mouseY >= 0 and mouseX <= WIDTH and mouseY <= HEIGHT and !sf::Mouse::isButtonPressed(sf::Mouse::Right) and mousevar2 and window.hasFocus())
+            if (sf::Mouse::isButtonPressed(sf::Mouse::Left) and !mousevar and mouseX >= 0 and mouseY >= 0 and mouseX <= WIDTH and mouseY <= HEIGHT and !sf::Mouse::isButtonPressed(sf::Mouse::Right) and mousevar2 and focus)
             {
                 startX = mouseX;
                 startY = mouseY;
@@ -559,7 +514,7 @@ int main() {
 
         //cout << startX << ':' << startY << " :-- : " << endX << ':' << endY << endl;
 
-        if (!sf::Mouse::isButtonPressed(sf::Mouse::Left) and mouseX >= 0 and mouseY >= 0 and mouseX <= WIDTH and mouseY <= HEIGHT and mousevar and mousevar2 and !sf::Mouse::isButtonPressed(sf::Mouse::Right) and window.hasFocus())
+        if (!sf::Mouse::isButtonPressed(sf::Mouse::Left) and mouseX >= 0 and mouseY >= 0 and mouseX <= WIDTH and mouseY <= HEIGHT and mousevar and mousevar2 and !sf::Mouse::isButtonPressed(sf::Mouse::Right) and focus)
         {
             sf::Vector2i mousePosition = sf::Mouse::getPosition(window);
             mouseX = mousePosition.x;
@@ -616,9 +571,8 @@ int main() {
                 to_join = false;
             }
 
-            
 
-            start = std::chrono::steady_clock::now();
+
             to_join = false;
             StartingThread = std::thread(starter);
             refre = 15;
@@ -630,7 +584,9 @@ int main() {
             mousevar2 = true;
         }
 
-        if (sf::Mouse::isButtonPressed(sf::Mouse::Left) and window.hasFocus() and mousevar2 and mouseX >= 0 and mouseY >= 0 and mouseX <= WIDTH and mouseY <= HEIGHT and clicked and !sf::Mouse::isButtonPressed(sf::Mouse::Right) and mousevar2)
+        focus = window.hasFocus();
+
+        if (sf::Mouse::isButtonPressed(sf::Mouse::Left) and focus and mousevar2 and mouseX >= 0 and mouseY >= 0 and mouseX <= WIDTH and mouseY <= HEIGHT and clicked and !sf::Mouse::isButtonPressed(sf::Mouse::Right) and mousevar2)
         {
             sf::Vector2i mousePosition = sf::Mouse::getPosition(window);
             mouseX = mousePosition.x;
@@ -710,6 +666,7 @@ int main() {
             end = std::chrono::steady_clock::now();
             elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
             cout << "Calculations took: " << (elapsed.count() / 1000) << " seconds." << endl;
+            start = std::chrono::steady_clock::now();
             var1 = false;
         }
         if (ended)
@@ -717,7 +674,7 @@ int main() {
             var1 = true;
         }
 
-        if (sf::Mouse::isButtonPressed(sf::Mouse::Middle))
+        if (sf::Mouse::isButtonPressed(sf::Mouse::Middle) and focus)
         {
             
             end_all_threads = true;
@@ -738,7 +695,7 @@ int main() {
             end_all_threads = false;
         }
 
-        if (sf::Mouse::isButtonPressed(sf::Mouse::XButton1) and mousevar3)
+        if (sf::Mouse::isButtonPressed(sf::Mouse::XButton1) and mousevar3 and focus)
         {
             mousevar3 = false;
 
@@ -793,7 +750,19 @@ int main() {
             }
             
 
-            start = std::chrono::steady_clock::now();
+            maths = "";
+            maths = to_string((cpp_int)(((last_maxx[0] - last_minx[0]) * (last_maxy[0] - last_miny[0])) / ((last_maxx[last_maxx.size() - 1] - last_minx[last_maxx.size() - 1]) * (last_maxy[last_maxx.size() - 1] - last_miny[last_maxx.size() - 1]))));
+            string t = maths.substr(0, 1);
+
+            if (maths.size() > 20)
+            {
+                t.append(".");
+                t.append(maths.substr(1, 2));
+                t.append(" * 10^");
+                t.append(to_string(maths.size() - 1));
+                maths = t;
+            }
+
             to_join = false;
             StartingThread = std::thread(starter);
             refre = 15;
@@ -805,34 +774,15 @@ int main() {
             mousevar3 = true;
         }
 
+        focus = window.hasFocus();
+
         if (to_join)
         {
             StartingThread.join();
             to_join = false;
         }
 
-        if (to_clean and !ended and false)
-        {
-            cout << "Image generated." << endl;
-            cout << "Cleaning started!" << endl;
-            calculationThread1.join();
-            calculationThread2.join();
-            calculationThread3.join();
-            calculationThread4.join();
-            calculationThread5.join();
-            calculationThread6.join();
-            calculationThread7.join();
-            calculationThread8.join();
-            calculationThread9.join();
-            calculationThread10.join();
-            calculationThread11.join();
-            calculationThreadE.join();
-
-            to_clean = false;
-            cout << "Threads cleaned!" << endl;
-        }
-
-        if (sf::Mouse::isButtonPressed(sf::Mouse::XButton2) and mousevar4)
+        if (sf::Mouse::isButtonPressed(sf::Mouse::XButton2) and mousevar4 and focus)
         {
             mousevar4 = false;
 
@@ -856,7 +806,7 @@ int main() {
 
         if (!ended)
         {
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num1) and keyvar1)
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num1) and keyvar1 and focus)
             {
                 updatePallete( 100, max_iterations);
                 //updatePallete(100, max_iterations);
@@ -870,7 +820,7 @@ int main() {
                 keyvar1 = true;
             }
 
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num2) and keyvar2)
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num2) and keyvar2 and focus)
             {
                 
                 updatePallete(250, max_iterations);
@@ -883,7 +833,7 @@ int main() {
                 keyvar2 = true;
             }
 
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num3) and keyvar3)
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num3) and keyvar3 and focus)
             {
                 updatePallete(500, max_iterations);
                 keyvar3 = false;
@@ -895,7 +845,7 @@ int main() {
                 keyvar3 = true;
             }
 
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num4) and keyvar4)
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num4) and keyvar4 and focus)
             {
                 updatePallete(1000, max_iterations);
                 keyvar4 = false;
@@ -907,7 +857,7 @@ int main() {
                 keyvar4 = true;
             }
 
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num5) and keyvar5)
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num5) and keyvar5 and focus)
             {
                 updatePallete(2000, max_iterations);
                 keyvar5 = false;
@@ -919,7 +869,7 @@ int main() {
                 keyvar5 = true;
             }
 
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num6) and keyvar6)
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num6) and keyvar6 and focus)
             {
                 updatePallete(10000, max_iterations);
                 keyvar6 = false;
@@ -932,11 +882,7 @@ int main() {
             }
         }
 
-        sf::Font font;
-        font.loadFromFile("arial.ttf");
-        sf::Text text(std::string("Zoom: " + maths + "X"), font, 25);
-        text.setOutlineColor(sf::Color::Black);
-        text.setOutlineThickness(1);
+        text.setString((std::string("Zoom: " + maths + "X")));
 
         window.draw(text);
 
