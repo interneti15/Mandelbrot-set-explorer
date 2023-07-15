@@ -12,7 +12,6 @@
 using namespace boost::multiprecision;
 using namespace std;
 
-
 const int WIDTH = 900;
 const int HEIGHT = 900;
 
@@ -44,9 +43,11 @@ bool to_join = false;
 
 bool end_all_threads = false;
 
+//zoom 110
+
 int delta = 15;
 int numCores = std::thread::hardware_concurrency();
-//int numCores = 20;
+//int numCores = 30;
 
 vector<cpp_dec_float_50> last_minx = { -3 };
 vector< cpp_dec_float_50> last_maxx = { 1 };
@@ -83,11 +84,6 @@ bool from0(cpp_dec_float_50 x, cpp_dec_float_50 y, cpp_dec_float_50 len = 50) {
     }
 }
 
-void to_close(int i)
-{
-    //std::this_thread::sleep_for(chrono::duration<cpp_dec_float_50>(0.01));
-    is_alive[i] = false;
-}
 
 std::pair<cpp_dec_float_50, cpp_dec_float_50> mandel(cpp_dec_float_50 x, cpp_dec_float_50 y, cpp_dec_float_50 x0, cpp_dec_float_50 y0) {
     cpp_dec_float_50 real = (x * x) + (-y * y) + x0;
@@ -223,7 +219,6 @@ void calculateMandelbrot(int startRow, int endRow, int i, bool dry_run) {
         }
     }
     cout << "Ended: " << i << endl;
-    //thread c1(to_close, 1);
     is_alive[i] = false;
 }
 
@@ -291,21 +286,6 @@ void updatePallete(int new_max, int old)
 
 void dry()
 {
-    /*
-    calculationThread1 = std::thread(calculateMandelbrot, 0, 0, 1, true);
-    calculationThread2 = std::thread(calculateMandelbrot, 0, 0, 2, true);
-    calculationThread3 = std::thread(calculateMandelbrot, 0, 0, 3, true);
-    calculationThread4 = std::thread(calculateMandelbrot, 0, 0, 4, true);
-    calculationThread5 = std::thread(calculateMandelbrot, 0, 0, 5, true);
-    calculationThread6 = std::thread(calculateMandelbrot, 0, 0, 6, true);
-    calculationThread7 = std::thread(calculateMandelbrot, 0, 0, 7, true);
-    calculationThread8 = std::thread(calculateMandelbrot, 0, 0, 8, true);
-    calculationThread9 = std::thread(calculateMandelbrot, 0, 0, 9, true);
-    calculationThread10 = std::thread(calculateMandelbrot, 0, 0, 10, true);
-    calculationThread11 = std::thread(calculateMandelbrot, 0, 0, 11, true);
-    calculationThreadE = std::thread(calculateMandelbrot, 0, 0, 12, true);
-    */
-
     for (size_t i = 0; i < calculationThreads.size(); i++)
     {
         calculationThreads[i] = std::thread(calculateMandelbrot, 0, 0, i, true);
@@ -314,7 +294,7 @@ void dry()
 
 void starter()
 {
-    
+    int starter_delta = delta;
 
 
     to_join = false;
@@ -325,17 +305,25 @@ void starter()
 
     while (!end_all_threads and !last_start)
     {
+
         for (size_t i = 0; i < calculationThreads.size() and !end_all_threads; i++)
         {
+
+            if (calculationThreads.size() * starter_delta + c > HEIGHT and starter_delta > 4)
+            {
+                starter_delta -= 1;
+                //cout << "                                 now: " << starter_delta << endl;
+            }
+
             if (!is_alive[i])
             {
                 is_alive[i] = true;
 
                 calculationThreads[i].join();
 
-                if (c + delta <= HEIGHT)
+                if (c + starter_delta <= HEIGHT)
                 {
-                    calculationThreads[i] = std::thread(calculateMandelbrot, c, c + delta, i, false);
+                    calculationThreads[i] = std::thread(calculateMandelbrot, c, c + starter_delta, i, false);
                 }
                 else
                 {
@@ -344,7 +332,7 @@ void starter()
                     break;
                 }
                 
-                c += delta;
+                c += starter_delta;
             }
         }
     }
